@@ -1,0 +1,1644 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <script>
+    // Global error console to capture mobile/browser issues and display beautifully
+    window.addEventListener('error', function (e) {
+      var div = document.getElementById('debug-error-console');
+      if (!div) {
+        div = document.createElement('div');
+        div.id = 'debug-error-console';
+        div.style.position = 'fixed';
+        div.style.bottom = '10px';
+        div.style.left = '10px';
+        div.style.right = '10px';
+        div.style.background = 'rgba(255, 0, 0, 0.95)';
+        div.style.color = 'white';
+        div.style.padding = '12px 16px';
+        div.style.zIndex = '99999';
+        div.style.fontFamily = 'monospace';
+        div.style.fontSize = '13px';
+        div.style.borderRadius = '8px';
+        div.style.whiteSpace = 'pre-wrap';
+        div.style.boxShadow = '0 4px 15px rgba(0,0,0,0.5)';
+        div.style.border = '1.5px solid #ff9999';
+        document.body.appendChild(div);
+      }
+      div.textContent = '🚨 JS ERROR: ' + e.message + '\nAt: ' + e.filename + ':' + e.lineno;
+    });
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Flappy Fish for Tanay ❤️</title>
+  <meta name="description"
+    content="A cute, romantic Flappy Fish mini-game designed for Tanay! Swim through the red flags and collect all the hearts of love. Can you get a high score?" />
+
+  <!-- Google Fonts: Fredoka (rounded & cute) + Nunito (body readability) -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;700;900&display=swap"
+    rel="stylesheet" />
+
+  <style>
+    :root {
+      --primary-pink: #ff7675;
+      --secondary-pink: #fd79a8;
+      --pastel-blue: #8ec5fc;
+      --pastel-purple: #e0c3fc;
+      --card-bg: rgba(255, 255, 255, 0.88);
+      --font-rounded: 'Fredoka', 'Nunito', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body,
+    html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #2c3e50;
+      font-family: var(--font-rounded);
+    }
+
+    /* ── STUNNING RADIAL GRADIENT OUTER CONTAINER ── */
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: radial-gradient(circle at center, var(--pastel-purple) 0%, var(--pastel-blue) 100%);
+      overflow: hidden;
+    }
+
+    /* ── FULL SCREEN CANVAS ── */
+    #game-canvas {
+      background: transparent;
+      display: block;
+      z-index: 1;
+    }
+
+    /* ── SHIFT CANVAS SHAKE ── */
+    .shake-anim {
+      animation: canvasShake 0.4s ease-in-out;
+    }
+
+    @keyframes canvasShake {
+
+      0%,
+      100% {
+        transform: translate(0, 0);
+      }
+
+      10%,
+      90% {
+        transform: translate(-3px, 2px);
+      }
+
+      30%,
+      70% {
+        transform: translate(4px, -3px);
+      }
+
+      50% {
+        transform: translate(-5px, 4px);
+      }
+    }
+
+    /* ── UI SCREENS OVERLAYS (FITS PERFECTLY OVER FULL SCREEN CANVAS) ── */
+    .ui-overlay {
+      position: absolute;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    .ui-overlay.active {
+      pointer-events: auto;
+      opacity: 1;
+    }
+
+    /* ── GORGEOUS GLASSMORPHIC CARDS ── */
+    .card {
+      width: 88%;
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 4px solid rgba(255, 255, 255, 0.9);
+      border-radius: 28px;
+      padding: 36px 28px;
+      text-align: center;
+      box-shadow:
+        0 15px 35px rgba(253, 121, 168, 0.15),
+        0 5px 15px rgba(0, 0, 0, 0.06),
+        inset 0 0 15px rgba(255, 255, 255, 0.6);
+      transform: scale(0.9);
+      transition: transform 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ui-overlay.active .card {
+      transform: scale(1);
+    }
+
+    /* ── BACKGROUND FLOATING HEARTS (HTML LAYER FOR START/END SCREENS) ── */
+    .bg-hearts {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      z-index: 0;
+      pointer-events: none;
+      border-radius: 24px;
+    }
+
+    .floating-heart {
+      position: absolute;
+      bottom: -60px;
+      color: rgba(255, 107, 107, 0.45);
+      font-size: 24px;
+      user-select: none;
+      pointer-events: none;
+      animation: floatUp 8s linear infinite;
+    }
+
+    @keyframes floatUp {
+      0% {
+        transform: translateY(0) rotate(0deg) scale(0.7);
+        opacity: 0;
+      }
+
+      10% {
+        opacity: 0.8;
+      }
+
+      90% {
+        opacity: 0.8;
+      }
+
+      100% {
+        transform: translateY(-850px) rotate(360deg) scale(1.3);
+        opacity: 0;
+      }
+    }
+
+    /* ── TYPOGRAPHY & DESIGN SYSTEM ── */
+    .game-title {
+      font-size: 38px;
+      font-weight: 700;
+      line-height: 1.15;
+      color: #2d3436;
+      margin-bottom: 8px;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      position: relative;
+      z-index: 2;
+    }
+
+    .game-title span {
+      background: linear-gradient(135deg, #ff4757 0%, #ff6b6b 50%, #ffa502 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .badge-for-tanay {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: linear-gradient(135deg, rgba(255, 118, 117, 0.15) 0%, rgba(253, 121, 168, 0.15) 100%);
+      border: 1.5px solid rgba(255, 118, 117, 0.3);
+      padding: 6px 16px;
+      border-radius: 20px;
+      color: #e84393;
+      font-weight: 700;
+      font-size: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 10px rgba(232, 67, 147, 0.05);
+      position: relative;
+      z-index: 2;
+    }
+
+    .badge-for-tanay span {
+      animation: pulse 1.5s infinite alternate;
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(1);
+      }
+
+      100% {
+        transform: scale(1.18);
+      }
+    }
+
+    .subtitle {
+      font-size: 15px;
+      color: #636e72;
+      line-height: 1.5;
+      margin: 10px auto 25px auto;
+      max-width: 90%;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* ── ADORABLE PREVIEW BUBBLE ── */
+    .preview-container {
+      width: 110px;
+      height: 110px;
+      background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.9) 0%, rgba(224, 195, 252, 0.4) 60%, rgba(142, 197, 252, 0.6) 100%);
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0 auto 25px auto;
+      box-shadow:
+        0 8px 24px rgba(142, 197, 252, 0.4),
+        inset -5px -5px 12px rgba(0, 0, 0, 0.05),
+        inset 5px 5px 15px rgba(255, 255, 255, 0.8);
+      border: 3px solid rgba(255, 255, 255, 0.6);
+      animation: bubbleFloat 4s ease-in-out infinite;
+      position: relative;
+      z-index: 2;
+    }
+
+    .preview-fish {
+      font-size: 52px;
+      line-height: 1;
+      animation: fishFloatWag 2.5s ease-in-out infinite alternate;
+      display: inline-block;
+    }
+
+    @keyframes bubbleFloat {
+
+      0%,
+      100% {
+        transform: translateY(0px) rotate(0deg);
+      }
+
+      50% {
+        transform: translateY(-12px) rotate(4deg);
+      }
+    }
+
+    @keyframes fishFloatWag {
+      0% {
+        transform: rotate(-5deg) translateX(-2px);
+      }
+
+      100% {
+        transform: rotate(10deg) translateX(4px);
+      }
+    }
+
+    /* ── HIGH FIDELITY GRADIENT BUTTONS ── */
+    .btn-action {
+      background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
+      border: none;
+      outline: none;
+      border-radius: 50px;
+      color: white;
+      font-family: var(--font-rounded);
+      font-size: 20px;
+      font-weight: 700;
+      padding: 14px 38px;
+      cursor: pointer;
+      box-shadow: 0 10px 24px rgba(255, 107, 107, 0.35);
+      transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      position: relative;
+      z-index: 2;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-action:hover {
+      transform: translateY(-3px) scale(1.04);
+      box-shadow: 0 14px 28px rgba(255, 107, 107, 0.45);
+    }
+
+    .btn-action:active {
+      transform: translateY(1px) scale(0.97);
+      box-shadow: 0 5px 12px rgba(255, 107, 107, 0.3);
+    }
+
+    .btn-icon {
+      font-size: 22px;
+      display: inline-block;
+      animation: btnBeat 1.2s infinite alternate;
+    }
+
+    @keyframes btnBeat {
+      0% {
+        transform: scale(1);
+      }
+
+      100% {
+        transform: scale(1.25) rotate(10deg);
+      }
+    }
+
+    .hint {
+      font-size: 13px;
+      color: #95a5a6;
+      margin-top: 16px;
+      font-weight: 600;
+      animation: pulseBlink 2s infinite;
+      position: relative;
+      z-index: 2;
+    }
+
+    @keyframes pulseBlink {
+
+      0%,
+      100% {
+        opacity: 0.4;
+      }
+
+      50% {
+        opacity: 1;
+      }
+    }
+
+    /* ── HUD OVERLAY IN GAMEPLAY ── */
+    #hud {
+      position: absolute;
+      top: 25px;
+      width: 90%;
+      max-width: 600px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 5;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    #hud.active {
+      opacity: 1;
+    }
+
+    .hud-card {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 2px solid rgba(255, 255, 255, 0.9);
+      border-radius: 20px;
+      padding: 8px 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 18px;
+      color: #2d3436;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+    }
+
+    #hud-score-val {
+      font-size: 22px;
+      color: #ff4757;
+      display: inline-block;
+    }
+
+    #hud-score-val.pop {
+      animation: scorePop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes scorePop {
+      0% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.4) rotate(-5deg);
+        color: #ff2a68;
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    .hud-tag {
+      color: #74b9ff;
+      font-size: 15px;
+    }
+
+    /* ── GAME OVER SPECIFIC STYLING ── */
+    .go-emoji {
+      font-size: 58px;
+      margin-bottom: 12px;
+      animation: pulseBreak 2s infinite alternate;
+      display: inline-block;
+    }
+
+    @keyframes pulseBreak {
+      0% {
+        transform: scale(1) rotate(-3deg);
+      }
+
+      100% {
+        transform: scale(1.15) rotate(3deg);
+      }
+    }
+
+    .score-card {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 235, 240, 0.95) 100%);
+      border: 2px solid rgba(255, 118, 117, 0.25);
+      border-radius: 20px;
+      padding: 16px 20px;
+      margin: 15px auto 25px auto;
+      max-width: 250px;
+      box-shadow: inset 0 0 10px rgba(255, 118, 117, 0.05);
+    }
+
+    .score-label {
+      font-size: 13px;
+      color: #7f8c8d;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .score-number {
+      font-size: 46px;
+      font-weight: 900;
+      color: #ff4757;
+      line-height: 1.1;
+      text-shadow: 0 4px 10px rgba(255, 71, 87, 0.15);
+      animation: bounceScore 1s infinite alternate cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    @keyframes bounceScore {
+      0% {
+        transform: translateY(0);
+      }
+
+      100% {
+        transform: translateY(-4px);
+      }
+    }
+
+    .score-sub {
+      font-size: 14px;
+      color: #2d3436;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    .high-score-badge {
+      display: inline-block;
+      font-size: 14px;
+      color: #e67e22;
+      background: #fef5e7;
+      border: 1px solid #fad7a0;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      animation: badgePulse 1.2s infinite alternate;
+    }
+
+    @keyframes badgePulse {
+      0% {
+        transform: scale(1);
+      }
+
+      100% {
+        transform: scale(1.05);
+      }
+    }
+
+    .romantic-quote {
+      font-style: italic;
+      color: #636e72;
+      font-size: 15px;
+      line-height: 1.5;
+      margin: 0 auto 25px auto;
+      max-width: 90%;
+    }
+
+    /* ── INTRO SCREEN SPECIFIC STYLES ── */
+    .intro-greeting {
+      font-size: 16px;
+      color: #e84393;
+      font-weight: 700;
+      margin-bottom: 6px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .intro-name {
+      font-size: 42px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 40%, #fd79a8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 16px;
+      position: relative;
+      z-index: 2;
+      animation: nameShimmer 3s ease-in-out infinite alternate;
+    }
+
+    @keyframes nameShimmer {
+      0% { filter: brightness(1); }
+      100% { filter: brightness(1.15); }
+    }
+
+    .intro-divider {
+      width: 60px;
+      height: 3px;
+      background: linear-gradient(90deg, #ff6b6b, #fd79a8);
+      border-radius: 2px;
+      margin: 0 auto 18px auto;
+      position: relative;
+      z-index: 2;
+    }
+
+    .intro-desc {
+      font-size: 16px;
+      color: #2d3436;
+      line-height: 1.65;
+      margin: 0 auto 24px auto;
+      max-width: 92%;
+      position: relative;
+      z-index: 2;
+    }
+
+    .intro-desc .emoji-highlight {
+      font-size: 20px;
+      vertical-align: middle;
+    }
+
+    .intro-rules {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 26px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .intro-rule-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .intro-rule-emoji {
+      font-size: 32px;
+      animation: ruleFloat 2.5s ease-in-out infinite alternate;
+    }
+
+    .intro-rule-emoji:nth-child(1) { animation-delay: 0s; }
+
+    .intro-rule-text {
+      font-size: 13px;
+      color: #636e72;
+      font-weight: 700;
+    }
+
+    .intro-rule-text.good { color: #00b894; }
+    .intro-rule-text.bad { color: #d63031; }
+
+    @keyframes ruleFloat {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-6px); }
+    }
+
+    .intro-footer {
+      font-size: 12px;
+      color: #b2bec3;
+      margin-top: 14px;
+      position: relative;
+      z-index: 2;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="canvas-container">
+
+    <!-- ── INTRO SCREEN OVERLAY ── -->
+    <div id="intro-screen" class="ui-overlay active">
+      <div class="card">
+        <div class="bg-hearts" id="intro-hearts"></div>
+
+        <div class="intro-greeting">Hey there! 👋</div>
+        <div class="intro-name">Devanshi ✨</div>
+        <div class="intro-divider"></div>
+
+        <p class="intro-desc">
+          I made this tiny game just for you!<br>
+          Your mission is simple:
+        </p>
+
+        <div class="intro-rules">
+          <div class="intro-rule-item">
+            <span class="intro-rule-emoji">❤️</span>
+            <span class="intro-rule-text good">Collect these!</span>
+          </div>
+          <div class="intro-rule-item">
+            <span class="intro-rule-emoji">🚩</span>
+            <span class="intro-rule-text bad">Ignore these!</span>
+          </div>
+        </div>
+
+        <p class="intro-desc" style="font-size:14px; color:#636e72; margin-bottom:20px;">
+          Collect hearts for me and dodge all the red flags 🐠💕
+        </p>
+
+        <button class="btn-action" id="btn-intro">
+          <span>Let's Go!</span>
+          <span class="btn-icon">🐠</span>
+        </button>
+
+        <div class="intro-footer">— made with ❤️ by Tanay</div>
+      </div>
+    </div>
+
+    <!-- ── THE HUD OVERLAY ── -->
+    <div id="hud">
+      <div class="hud-card">
+        <span>❤️</span>
+        <span id="hud-score-val">0</span>
+      </div>
+      <div class="hud-card">
+        <span class="hud-tag">For Tanay</span>
+        <span>🐠</span>
+      </div>
+    </div>
+
+    <!-- ── START SCREEN OVERLAY ── -->
+    <div id="start-screen" class="ui-overlay">
+      <div class="card">
+        <div class="bg-hearts" id="start-hearts"></div>
+
+        <div class="badge-for-tanay">
+          <span>❤️</span> For Tanay <span>❤️</span>
+        </div>
+
+        <h1 class="game-title">Flappy <span>Fish</span></h1>
+
+        <div class="subtitle">Swim carefully! Dodge the Red Flags 🚩 and collect all the Hearts ❤️ to express your love!
+        </div>
+
+        <div class="preview-container">
+          <span class="preview-fish">🐠</span>
+        </div>
+
+        <button class="btn-action" id="btn-start">
+          <span>Start Swimming</span>
+          <span class="btn-icon">💘</span>
+        </button>
+
+        <div class="hint">Click, Spacebar or Tap to flap upward</div>
+      </div>
+    </div>
+
+    <!-- ── THE CENTRAL GAME CANVAS ── -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- ── GAME OVER SCREEN OVERLAY ── -->
+    <div id="gameover-screen" class="ui-overlay">
+      <div class="card">
+        <div class="bg-hearts" id="gameover-hearts"></div>
+
+        <div class="go-emoji" id="go-emoji">💔</div>
+
+        <h2 class="game-title"><span>Swimming Over</span></h2>
+
+        <div class="score-card">
+          <div class="score-label">You Collected</div>
+          <div class="score-number" id="final-score">0</div>
+          <div class="score-sub">hearts for Tanay ❤️</div>
+        </div>
+
+        <div class="high-score-badge" id="high-score-badge">
+          🏆 Personal Best: <span id="high-score-val">0</span>
+        </div>
+
+        <p class="romantic-quote" id="romantic-quote">"Don't worry, love takes practice! Try again 🐠❤️"</p>
+
+        <button class="btn-action" id="btn-retry">
+          <span>Play Again</span>
+          <span class="btn-icon">💫</span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ── GAME CONSTANTS AND COORDINATE SYSTEM ──
+    let V_WIDTH = 480;
+    const V_HEIGHT = 800;
+
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+
+    // ── RESPONSIVE FULL-SCREEN RESIZING ──
+    function resizeCanvas() {
+      const container = document.getElementById('canvas-container');
+      const contWidth = container.clientWidth;
+      const contHeight = container.clientHeight;
+
+      // Full screen style sizing
+      canvas.style.width = contWidth + 'px';
+      canvas.style.height = contHeight + 'px';
+
+      // Keep virtual height locked at 800 for consistent physics, 
+      // but calculate width dynamically based on actual screen aspect ratio
+      V_WIDTH = Math.round(800 * (contWidth / contHeight));
+
+      canvas.width = V_WIDTH;
+      canvas.height = V_HEIGHT;
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas(); // initial setup
+
+    // ── AUDIO EFFECTS SYNTHESIZER (Web Audio API) ──
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    // Play cute bubble/jump chime
+    function playFlapSound() {
+      if (!audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.type = 'triangle'; // softer than sine, cute bubble pop vibe
+        osc.frequency.setValueAtTime(280, now);
+        osc.frequency.exponentialRampToValueAtTime(550, now + 0.12);
+
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.12);
+
+        osc.start(now);
+        osc.stop(now + 0.12);
+      } catch (err) {
+        console.warn('Audio failure:', err);
+      }
+    }
+
+    // Play sparkling major pentatonic collection chord
+    function playCollectSound() {
+      if (!audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6 (C Major chord)
+
+        notes.forEach((freq, idx) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.04);
+
+          gain.gain.setValueAtTime(0.08, now + idx * 0.04);
+          gain.gain.linearRampToValueAtTime(0.001, now + idx * 0.04 + 0.22);
+
+          osc.start(now + idx * 0.04);
+          osc.stop(now + idx * 0.04 + 0.22);
+        });
+      } catch (err) {
+        console.warn('Audio failure:', err);
+      }
+    }
+
+    // Play sad descending slide buzz on crash
+    function playCrashSound() {
+      if (!audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.linearRampToValueAtTime(80, now + 0.35);
+
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.35);
+
+        osc.start(now);
+        osc.stop(now + 0.35);
+      } catch (err) {
+        console.warn('Audio failure:', err);
+      }
+    }
+
+    // ── GAME STATE VARIABLES ──
+    let gameState = 'INTRO'; // INTRO, START, PLAYING, GAMEOVER
+    let score = 0;
+    let highScore = parseInt(localStorage.getItem('flappy_fish_highscore')) || 0;
+    let frames = 0;
+    let shakeFrames = 0; // screen shake counter
+
+    // Game objects
+    let fish = {
+      x: 120,
+      y: 350,
+      vy: 0,
+      radius: 17, // collision radius (visually 28x22)
+      angle: 0,
+      flapProgress: 0, // for pectoral fin animation
+      gravity: 0.16, // gentle sinking
+      flapForce: -3.8, // gentle upward lift
+      maxFallSpeed: 5, // slow caps
+      hoverTicks: 0 // tap hover glide ticks
+    };
+
+    let redFlags = [];
+    let hearts = [];
+    let particles = [];
+    let scorePops = [];
+    let backgroundBubbles = [];
+
+    // Initialize rising bubble particles in ocean
+    function initBackgroundBubbles() {
+      backgroundBubbles = [];
+      for (let i = 0; i < 22; i++) {
+        backgroundBubbles.push({
+          x: Math.random() * V_WIDTH,
+          y: Math.random() * V_HEIGHT,
+          radius: Math.random() * 7 + 2,
+          speed: Math.random() * 1.2 + 0.4,
+          wobbleSpeed: Math.random() * 0.04 + 0.01,
+          wobbleAmp: Math.random() * 12 + 4,
+          phase: Math.random() * Math.PI * 2
+        });
+      }
+    }
+    initBackgroundBubbles();
+
+    // ── HTML FLOATING HEARTS GENERATOR ──
+    function startHtmlHearts(containerId) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      container.innerHTML = '';
+
+      const emojis = ['❤️', '💖', '💝', '💕', '💘'];
+      const count = 15;
+
+      for (let i = 0; i < count; i++) {
+        const heart = document.createElement('div');
+        heart.className = 'floating-heart';
+        heart.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        heart.style.left = Math.random() * 100 + '%';
+        heart.style.animationDuration = (4.5 + Math.random() * 6) + 's';
+        heart.style.animationDelay = (Math.random() * 5) + 's';
+        heart.style.fontSize = (16 + Math.random() * 22) + 'px';
+        container.appendChild(heart);
+      }
+    }
+    startHtmlHearts('intro-hearts');
+    startHtmlHearts('start-hearts');
+
+    // ── INTRO SCREEN BUTTON ──
+    document.getElementById('btn-intro').addEventListener('click', function (e) {
+      e.stopPropagation();
+      gameState = 'START';
+      document.getElementById('intro-screen').classList.remove('active');
+      document.getElementById('start-screen').classList.add('active');
+    });
+
+    // ── INPUT CONTROLS ──
+    function handleFlap(e) {
+      if (e) {
+        // Prevent default spacebar scrolling or tap zoom
+        if (e.type === 'keydown' && e.code !== 'Space') return;
+        e.preventDefault();
+      }
+
+      initAudio();
+
+      if (gameState === 'INTRO') {
+        // Do nothing — wait for the intro button
+        return;
+      } else if (gameState === 'START') {
+        startGame();
+      } else if (gameState === 'PLAYING') {
+        fish.vy = fish.flapForce;
+        fish.flapProgress = 1.0; // trigger pectoral fin animation
+        fish.hoverTicks = 16; // tap hover glide ticks
+        playFlapSound();
+
+        // Spawn small tail bubble particles when flapping
+        spawnFlapParticles();
+      } else if (gameState === 'GAMEOVER') {
+        // Debounce space/click retries so they don't immediately skip
+      }
+    }
+
+    window.addEventListener('keydown', handleFlap);
+    window.addEventListener('mousedown', handleFlap);
+    // Touch event with passive: false to allow e.preventDefault()
+    window.addEventListener('touchstart', handleFlap, { passive: false });
+
+    // ── GAME LOOPS & TIMING ──
+
+    function startGame() {
+      initAudio();
+      gameState = 'PLAYING';
+      score = 0;
+      frames = 0;
+      shakeFrames = 0;
+
+      // Reset Fish
+      fish.y = 350;
+      fish.vy = fish.flapForce; // Immediate upward swim boost at start!
+      fish.angle = -0.3; // Tilts slightly up
+      fish.flapProgress = 1.0;
+      fish.hoverTicks = 16; // initial start hover ticks
+
+      playFlapSound();
+      spawnFlapParticles();
+
+      redFlags = [];
+      hearts = [];
+      particles = [];
+      scorePops = [];
+
+      // Hide menus, show HUD
+      document.getElementById('start-screen').classList.remove('active');
+      document.getElementById('gameover-screen').classList.remove('active');
+      document.getElementById('hud').classList.add('active');
+
+      document.getElementById('hud-score-val').textContent = '0';
+    }
+
+    function gameOver() {
+      gameState = 'GAMEOVER';
+      shakeFrames = 15; // screen shake impact!
+      canvas.classList.add('shake-anim');
+      setTimeout(() => canvas.classList.remove('shake-anim'), 400);
+
+      playCrashSound();
+      spawnCrashParticles();
+
+      // Check highscore
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('flappy_fish_highscore', highScore);
+        document.getElementById('high-score-badge').innerHTML = `🏆 NEW Personal Best! <span id="high-score-val">${highScore}</span> 🎉`;
+      } else {
+        document.getElementById('high-score-badge').innerHTML = `🏆 Personal Best: <span id="high-score-val">${highScore}</span>`;
+      }
+
+      // Display stats
+      document.getElementById('final-score').textContent = score;
+
+      // Fun dynamic quote depending on performance
+      let quote = '';
+      if (score === 0) {
+        quote = '"0 hearts? Tanay is unimpressed. The goldfish is weeping. 💀🐠"';
+        document.getElementById('go-emoji').textContent = '💔';
+      } else if (score < 5) {
+        quote = '"Tanay received your hearts but is currently distracted by a sandwich. Keep swimming! 🥪"';
+        document.getElementById('go-emoji').textContent = '💖';
+      } else if (score < 15) {
+        quote = '"Ooo! Tanay is paying attention now! You\'re officially promoted to \'Cool Swimmer\'! 🏆"';
+        document.getElementById('go-emoji').textContent = '💘';
+      } else {
+        quote = '"Legendary! Tanay is now legally required to give you a high five! 🖐️✨"';
+        document.getElementById('go-emoji').textContent = '👑';
+      }
+      document.getElementById('romantic-quote').textContent = quote;
+
+      // HTML floating hearts on retry screen
+      startHtmlHearts('gameover-hearts');
+
+      // Swap screens
+      document.getElementById('hud').classList.remove('active');
+      document.getElementById('gameover-screen').classList.add('active');
+    }
+
+    // ── COLLISION CALCULATOR: CIRCLE TO BOX (AABB) ──
+    function checkCircleRectCollision(cx, cy, radius, rx, ry, rw, rh) {
+      // Find the closest point inside the rectangle to the circle's center
+      let closestX = Math.max(rx, Math.min(cx, rx + rw));
+      let closestY = Math.max(ry, Math.min(cy, ry + rh));
+
+      // Calculate distance from circle center to this closest point
+      let distVectorX = cx - closestX;
+      let distVectorY = cy - closestY;
+
+      let distanceSquared = (distVectorX * distVectorX) + (distVectorY * distVectorY);
+      return distanceSquared < (radius * radius);
+    }
+
+    // ── DYNAMIC PARTICLE SPAWNERS ──
+
+    function spawnFlapParticles() {
+      // Spawn bubbles behind the fish tail
+      for (let i = 0; i < 3; i++) {
+        particles.push({
+          x: fish.x - 22,
+          y: fish.y + (Math.random() - 0.5) * 8,
+          vx: -Math.random() * 2 - 1,
+          vy: (Math.random() - 0.5) * 1.5,
+          r: Math.random() * 4 + 2,
+          alpha: 0.8,
+          decay: Math.random() * 0.02 + 0.015,
+          color: 'rgba(255, 255, 255, 0.65)',
+          emoji: null
+        });
+      }
+    }
+
+    function spawnHeartBurst(x, y) {
+      // Burst of pink sparkles when a heart is captured
+      for (let i = 0; i < 12; i++) {
+        particles.push({
+          x: x,
+          y: y,
+          vx: (Math.random() - 0.5) * 6,
+          vy: (Math.random() - 0.5) * 6 - 2.5,
+          r: Math.random() * 5 + 2,
+          alpha: 1,
+          decay: Math.random() * 0.02 + 0.01,
+          color: `hsl(${Math.random() * 30 + 340}, 100%, 75%)`, // hot romantic pinks
+          emoji: Math.random() > 0.6 ? '❤️' : null
+        });
+      }
+    }
+
+    function spawnCrashParticles() {
+      // Explode into gold and orange fish scale bubbles
+      for (let i = 0; i < 20; i++) {
+        particles.push({
+          x: fish.x,
+          y: fish.y,
+          vx: (Math.random() - 0.5) * 9,
+          vy: (Math.random() - 0.5) * 9,
+          r: Math.random() * 6 + 2.5,
+          alpha: 1,
+          decay: Math.random() * 0.015 + 0.01,
+          color: Math.random() > 0.5 ? '#feca57' : '#ff9f43',
+          emoji: null
+        });
+      }
+    }
+
+    // ── GAME OVER AND REBOOT EVENTS ──
+    document.getElementById('btn-start').addEventListener('click', function (e) {
+      e.stopPropagation();
+      startGame();
+    });
+
+    document.getElementById('btn-retry').addEventListener('click', function (e) {
+      e.stopPropagation();
+      startGame();
+    });
+
+    // ── RENDERING / DRAWING ENGINE ──
+
+    // Custom rounded rectangle drawer for optimal backward compatibility
+    function drawRoundRect(c, x, y, w, h, r) {
+      if (r > w / 2) r = w / 2;
+      if (r > h / 2) r = h / 2;
+      c.beginPath();
+      c.moveTo(x + r, y);
+      c.arcTo(x + w, y, x + w, y + h, r);
+      c.arcTo(x + w, y + h, x, y + h, r);
+      c.arcTo(x, y + h, x, y, r);
+      c.arcTo(x, y, x + w, y, r);
+      c.closePath();
+    }
+
+    // Draw the adorable procedural fish
+    function drawFish(c, x, y, angle, flapVal, time) {
+      c.save();
+      c.translate(x, y);
+      c.rotate(angle);
+
+      // Cute warm shadow glow
+      c.shadowColor = 'rgba(255, 120, 100, 0.4)';
+      c.shadowBlur = 10;
+
+      // Tail wag wave based on frames & jump progression
+      let tailAngle = Math.sin(time * 0.16 + flapVal * 6) * 0.26;
+
+      // 1. Draw Tail Fin
+      c.save();
+      c.translate(-24, 0);
+      c.rotate(tailAngle);
+      let tailGrad = c.createLinearGradient(-15, -12, 0, 12);
+      tailGrad.addColorStop(0, '#ffbe76');
+      tailGrad.addColorStop(1, '#ff7979');
+      c.fillStyle = tailGrad;
+      c.beginPath();
+      c.moveTo(0, 0);
+      c.quadraticCurveTo(-14, -18, -25, -14);
+      c.quadraticCurveTo(-18, 0, -25, 14);
+      c.quadraticCurveTo(-14, 18, 0, 0);
+      c.closePath();
+      c.fill();
+      c.restore();
+
+      // 2. Draw Fish Body
+      let bodyGrad = c.createLinearGradient(-26, -18, 26, 18);
+      bodyGrad.addColorStop(0, '#feca57'); // bright golden yellow
+      bodyGrad.addColorStop(0.5, '#ff9f43'); // adorable orange
+      bodyGrad.addColorStop(1, '#ff6b6b'); // warm romantic red-pink nose
+      c.fillStyle = bodyGrad;
+      c.beginPath();
+      c.ellipse(0, 0, 28, 21, 0, 0, Math.PI * 2);
+      c.fill();
+
+      // 3. Draw Side/Pectoral Fin (Animates dynamically when player flaps!)
+      c.save();
+      c.translate(-5, 4);
+      let finAngle = Math.sin(flapVal * Math.PI) * 0.65;
+      c.rotate(0.2 + finAngle);
+      c.fillStyle = '#ffbe76';
+      c.beginPath();
+      c.moveTo(0, 0);
+      c.quadraticCurveTo(8, 12, 12, 4);
+      c.quadraticCurveTo(8, -4, 0, 0);
+      c.closePath();
+      c.fill();
+      c.restore();
+
+      // 4. Draw Cute Blushing Cheek
+      c.fillStyle = 'rgba(255, 107, 129, 0.4)';
+      c.beginPath();
+      c.ellipse(9, 5, 6, 4, 0, 0, Math.PI * 2);
+      c.fill();
+
+      // 5. Draw Anime Sparks Eyes
+      c.save();
+      c.translate(14, -5);
+      c.shadowBlur = 0; // Keep eyes crisp and sparkling!
+
+      // White sclera
+      c.fillStyle = '#ffffff';
+      c.beginPath();
+      c.arc(0, 0, 7, 0, Math.PI * 2);
+      c.fill();
+
+      // Dark pupil
+      c.fillStyle = '#2d3436';
+      c.beginPath();
+      c.arc(1, 0, 4.5, 0, Math.PI * 2);
+      c.fill();
+
+      // Dual Highlights
+      c.fillStyle = '#ffffff';
+      c.beginPath();
+      c.arc(-0.8, -1.8, 1.8, 0, Math.PI * 2); // Big reflection
+      c.arc(2.2, 1.5, 0.8, 0, Math.PI * 2); // Cute tiny reflection
+      c.fill();
+      c.restore();
+
+      // 6. Draw Kissy Mouth
+      c.strokeStyle = '#d63031';
+      c.lineWidth = 2.5;
+      c.lineCap = 'round';
+      c.beginPath();
+      c.arc(26, 1, 3, Math.PI * 0.8, Math.PI * 1.7);
+      c.stroke();
+
+      // 7. Render cute pink bow-tie / crown on top
+      c.save();
+      c.translate(-6, -19);
+      c.rotate(-0.08);
+      c.fillStyle = '#ff7675';
+      c.shadowColor = 'rgba(255, 118, 117, 0.5)';
+      c.shadowBlur = 6;
+      // Draw a tiny cute ribbon-bow
+      c.beginPath();
+      c.moveTo(-5, -4);
+      c.lineTo(5, 4);
+      c.lineTo(5, -4);
+      c.lineTo(-5, 4);
+      c.closePath();
+      c.fill();
+      // center bead
+      c.fillStyle = '#ffeaa7';
+      c.beginPath();
+      c.arc(0, 0, 2, 0, Math.PI * 2);
+      c.fill();
+      c.restore();
+
+      c.restore();
+    }
+
+    // Draw a cute, floating Red Flag obstacle
+    function drawRedFlag(c, x, y, wobblePhase, time) {
+      c.save();
+
+      // Wobble/hover animation
+      let floatY = y + Math.sin(time * 0.08 + wobblePhase) * 6;
+
+      // Draw a soft glowing backdrop circle for the flag
+      let bubbleGrad = c.createRadialGradient(x, floatY, 2, x, floatY, 24);
+      bubbleGrad.addColorStop(0, 'rgba(255, 118, 117, 0.25)'); // soft red glow
+      bubbleGrad.addColorStop(0.6, 'rgba(255, 118, 117, 0.1)');
+      bubbleGrad.addColorStop(1, 'rgba(255, 118, 117, 0)');
+
+      c.fillStyle = bubbleGrad;
+      c.beginPath();
+      c.arc(x, floatY, 24, 0, Math.PI * 2);
+      c.fill();
+
+      // Outer glowing ring
+      c.strokeStyle = 'rgba(255, 118, 117, 0.3)';
+      c.lineWidth = 1.5;
+      c.beginPath();
+      c.arc(x, floatY, 20, 0, Math.PI * 2);
+      c.stroke();
+
+      // Big Red Flag emoji in the center
+      c.font = '34px sans-serif';
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillText('🚩', x, floatY);
+
+      c.restore();
+    }
+
+    // Draw a cute, floating Heart collectible
+    function drawHeart(c, x, y, wobblePhase, time) {
+      c.save();
+
+      let floatY = y + Math.sin(time * 0.08 + wobblePhase) * 6;
+
+      // Glowing bubble backdrop for heart
+      let bubbleGrad = c.createRadialGradient(x, floatY, 2, x, floatY, 22);
+      bubbleGrad.addColorStop(0, 'rgba(253, 121, 168, 0.25)'); // soft pink glow
+      bubbleGrad.addColorStop(0.6, 'rgba(253, 121, 168, 0.1)');
+      bubbleGrad.addColorStop(1, 'rgba(253, 121, 168, 0)');
+
+      c.fillStyle = bubbleGrad;
+      c.beginPath();
+      c.arc(x, floatY, 22, 0, Math.PI * 2);
+      c.fill();
+
+      // Outer glowing ring
+      c.strokeStyle = 'rgba(253, 121, 168, 0.3)';
+      c.lineWidth = 1.5;
+      c.beginPath();
+      c.arc(x, floatY, 18, 0, Math.PI * 2);
+      c.stroke();
+
+      // Big Heart emoji in center
+      c.font = '30px sans-serif';
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillText('❤️', x, floatY);
+
+      c.restore();
+    }
+
+    // Wavy Sandy seabed with Swaying Seaweeds
+    function drawSeabed(c, time) {
+      c.save();
+
+      // Seabed gradient
+      let sandGrad = c.createLinearGradient(0, 755, 0, 800);
+      sandGrad.addColorStop(0, '#fef1d2');
+      sandGrad.addColorStop(1, '#fbd58f');
+      c.fillStyle = sandGrad;
+
+      c.shadowColor = 'rgba(251, 213, 143, 0.2)';
+      c.shadowBlur = 8;
+
+      c.beginPath();
+      c.moveTo(0, V_HEIGHT);
+      c.lineTo(0, 762);
+
+      // Loop to draw smooth dynamic sand waves
+      for (let x = 0; x <= V_WIDTH; x += 15) {
+        let waveY = 762 + Math.sin(x * 0.02 + time * 0.02) * 5;
+        c.lineTo(x, waveY);
+      }
+
+      c.lineTo(V_WIDTH, V_HEIGHT);
+      c.closePath();
+      c.fill();
+
+      // Draw procedural seaweed
+      c.fillStyle = 'rgba(46, 204, 113, 0.7)';
+      const weeds = [40, 130, 220, 310, 400];
+
+      weeds.forEach((wx, idx) => {
+        c.beginPath();
+        c.moveTo(wx, 770);
+        let sway = Math.sin(time * 0.035 + idx * 1.5) * 10;
+        c.quadraticCurveTo(wx - 8 + sway, 720, wx + sway, 685);
+        c.quadraticCurveTo(wx + 12 + sway, 720, wx + 12, 770);
+        c.closePath();
+        c.fill();
+      });
+
+      c.restore();
+    }
+
+    // ── GAME UPDATE & ANIMATION TICK ──
+    function tick() {
+      frames++;
+
+      // ── SCREEN SHAKE SYSTEM ──
+      ctx.clearRect(0, 0, V_WIDTH, V_HEIGHT);
+      ctx.save();
+
+      if (shakeFrames > 0) {
+        let dx = (Math.random() - 0.5) * 12;
+        let dy = (Math.random() - 0.5) * 12;
+        ctx.translate(dx, dy);
+        shakeFrames--;
+      }
+
+      // ── DRAW RADIAL PASTEL OCEAN BACKGROUND ──
+      let bgGrad = ctx.createLinearGradient(0, 0, 0, V_HEIGHT);
+      bgGrad.addColorStop(0, '#a1c4fd'); // soft blue
+      bgGrad.addColorStop(0.5, '#c2e9fb'); // soft turquoise
+      bgGrad.addColorStop(1, '#ffc0cb'); // sweet pink romantic bottom
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+
+      // ── UPDATE & DRAW BACKGROUND BUBBLES ──
+      backgroundBubbles.forEach(b => {
+        b.y -= b.speed;
+        b.phase += b.wobbleSpeed;
+
+        let drawX = b.x + Math.sin(b.phase) * b.wobbleAmp;
+
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.beginPath();
+        ctx.arc(drawX, b.y, b.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // reflection dot
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.beginPath();
+        ctx.arc(drawX - b.radius * 0.3, b.y - b.radius * 0.3, b.radius * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // Reset bubble to bottom
+        if (b.y < -b.radius - 20) {
+          b.y = V_HEIGHT + b.radius + 20;
+          b.x = Math.random() * V_WIDTH;
+        }
+      });
+
+      // ── UPDATE PHYSICS & SPAWNS DURING GAMEPLAY ──
+      if (gameState === 'PLAYING') {
+
+        // Fish Physics with Hover Glide Delay
+        if (fish.hoverTicks > 0) {
+          fish.hoverTicks--;
+          // Reduce gravity pull significantly (by 75%) to create a cute hover glide!
+          fish.vy += fish.gravity * 0.25;
+        } else {
+          fish.vy += fish.gravity;
+        }
+
+        if (fish.vy > fish.maxFallSpeed) fish.vy = fish.maxFallSpeed;
+        fish.y += fish.vy;
+
+        // Visual tilt rotation based on velocity
+        fish.angle = fish.vy * 0.065;
+        if (fish.angle < -0.55) fish.angle = -0.55;
+        if (fish.angle > 0.8) fish.angle = 0.8;
+
+        // Decaying flap scale progress
+        if (fish.flapProgress > 0) {
+          fish.flapProgress -= 0.08;
+        }
+
+        // Screen boundary safety nets
+        if (fish.y - fish.radius < 0 || fish.y + fish.radius > 760) {
+          gameOver();
+        }
+
+        // Spawning: every 140 frames (approx 2.3s)
+        if (frames % 140 === 0) {
+          let flagY = 80 + Math.random() * 560; // Flag Y position
+
+          redFlags.push({
+            x: V_WIDTH + 40,
+            y: flagY,
+            radius: 20,
+            wobblePhase: Math.random() * Math.PI * 2
+          });
+
+          // Spawn a heart at a safe distance vertically
+          let heartY = 80 + Math.random() * 560;
+          while (Math.abs(heartY - flagY) < 140) {
+            heartY = 80 + Math.random() * 560;
+          }
+
+          hearts.push({
+            x: V_WIDTH + 100 + Math.random() * 60, // slightly offset horizontally for organic layout
+            y: heartY,
+            radius: 16,
+            wobblePhase: Math.random() * Math.PI * 2
+          });
+        }
+      }
+
+      // ── UPDATE & DRAW RED FLAGS ──
+      for (let i = redFlags.length - 1; i >= 0; i--) {
+        let f = redFlags[i];
+
+        if (gameState === 'PLAYING') {
+          f.x -= 1.2; // Slow scroll rate
+        }
+
+        // Draw floating red flag
+        drawRedFlag(ctx, f.x, f.y, f.wobblePhase, frames);
+
+        // Collision Checks
+        if (gameState === 'PLAYING') {
+          let flagFloatY = f.y + Math.sin(frames * 0.08 + f.wobblePhase) * 6;
+          let dx = fish.x - f.x;
+          let dy = fish.y - flagFloatY;
+          let dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < fish.radius + f.radius) {
+            gameOver();
+          }
+        }
+
+        // Trim out of bounds flags
+        if (f.x < -60) {
+          redFlags.splice(i, 1);
+        }
+      }
+
+      // ── UPDATE & DRAW HEARTS ❤️ ──
+      for (let i = hearts.length - 1; i >= 0; i--) {
+        let h = hearts[i];
+
+        if (gameState === 'PLAYING') {
+          h.x -= 1.2; // Slow scroll rate
+        }
+
+        // Draw floating heart bubble
+        drawHeart(ctx, h.x, h.y, h.wobblePhase, frames);
+
+        // Heart Collection checks
+        if (gameState === 'PLAYING') {
+          let heartFloatY = h.y + Math.sin(frames * 0.08 + h.wobblePhase) * 6;
+          let dx = fish.x - h.x;
+          let dy = fish.y - heartFloatY;
+          let dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < fish.radius + h.radius) {
+            // Collected!
+            score++;
+            playCollectSound();
+            spawnHeartBurst(h.x, heartFloatY);
+
+            // Pop score count in HUD
+            const scoreVal = document.getElementById('hud-score-val');
+            if (scoreVal) {
+              scoreVal.textContent = score;
+              scoreVal.classList.remove('pop');
+              void scoreVal.offsetWidth; // trigger layout reflow
+              scoreVal.classList.add('pop');
+            }
+
+            // Create floating score popup text
+            scorePops.push({
+              x: h.x,
+              y: heartFloatY - 12,
+              vy: -1.6,
+              alpha: 1.0,
+              text: '+1 ❤️'
+            });
+
+            // Remove collected heart
+            hearts.splice(i, 1);
+            continue;
+          }
+        }
+
+        // Trim out of bounds hearts
+        if (h.x < -50) {
+          hearts.splice(i, 1);
+        }
+      }
+
+      // ── DRAW FISH ──
+      if (gameState !== 'START') {
+        drawFish(ctx, fish.x, fish.y, fish.angle, fish.flapProgress, frames);
+      }
+
+      // ── DRAW SEABED ──
+      drawSeabed(ctx, frames);
+
+      // ── UPDATE & DRAW TEXT SCORE POPS ──
+      for (let i = scorePops.length - 1; i >= 0; i--) {
+        let sp = scorePops[i];
+        sp.y += sp.vy;
+        sp.alpha -= 0.02;
+
+        if (sp.alpha <= 0) {
+          scorePops.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = sp.alpha;
+        ctx.fillStyle = '#ff3838';
+        ctx.font = 'bold 20px var(--font-rounded)';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(sp.text, sp.x, sp.y);
+        ctx.restore();
+      }
+
+      // ── UPDATE & DRAW PARTICLES ──
+      for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+
+        p.vx *= 0.98; // water resistance
+        p.vy *= 0.98;
+
+        p.alpha -= p.decay;
+
+        if (p.alpha <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        if (p.emoji) {
+          ctx.font = (p.r * 2.6) + 'px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(p.emoji, p.x, p.y);
+        } else {
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      ctx.restore(); // screen shake restoration
+      requestAnimationFrame(tick);
+    }
+
+    // Start drawing frame updates instantly
+    requestAnimationFrame(tick);
+  </script>
+</body>
+
+</html>
